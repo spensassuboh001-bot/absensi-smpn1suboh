@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Absensi SMPN 1 Suboh - Google Sheets Cloud Sync</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col md:flex-row">
+
+    <!-- SIDEBAR LEFT NAVIGATION -->
+    <aside class="w-full md:w-64 bg-slate-900 text-white flex-shrink-0 flex flex-col justify-between border-r border-slate-800 z-30">
+        <div>
+            <!-- Header Logo -->
+            <div class="p-5 flex items-center gap-3 border-b border-slate-800">
+                <div class="bg-brand-500 text-white w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xl shadow-lg shadow-brand-500/30">
+                    <i class="fa-solid fa-school"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-white text-base leading-tight">SMPN 1 Suboh</h1>
+                    <p class="text-xs text-slate-400 font-medium">Cloud Database Sync</p>
+                </div>
+            </div>
+
+            <!-- Profile Guru Input -->
+            <div class="p-4 bg-slate-800/60 border-b border-slate-800 space-y-2">
+                <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Identitas Pengabsen</label>
+                <select id="select-peran-guru" onchange="saveTeacherProfile()" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 font-medium outline-none focus:border-brand-500">
+                    <option value="Guru Piket">Guru Piket</option>
+                    <option value="Wali Kelas">Guru Wali Kelas</option>
+                </select>
+                <input type="text" id="input-nama-guru" placeholder="Nama Guru..." onchange="saveTeacherProfile()" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-500">
+            </div>
+
+            <!-- Navigation Menu -->
+            <nav class="p-3 space-y-1">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl flex items-center gap-3 transition-all bg-brand-600 text-white shadow-md shadow-brand-600/20">
+                    <i class="fa-solid fa-chart-pie text-sm"></i> Dashboard
+                </button>
+                <button onclick="switchTab('input-absen')" id="nav-input-absen" class="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl flex items-center gap-3 transition-all text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-clipboard-user text-sm"></i> Input Presensi
+                </button>
+                <button onclick="switchTab('status-kelas')" id="nav-status-kelas" class="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl flex items-center gap-3 transition-all text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-list-check text-sm"></i> Status Kelas
+                </button>
+                <button onclick="switchTab('rekap')" id="nav-rekap" class="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl flex items-center gap-3 transition-all text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-calendar-check text-sm"></i> Rekap Absensi
+                </button>
+                <button onclick="switchTab('master-siswa')" id="nav-master-siswa" class="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl flex items-center gap-3 transition-all text-slate-400 hover:text-white hover:bg-slate-800">
+                    <i class="fa-solid fa-users text-sm"></i> Data Siswa
+                </button>
+            </nav>
+        </div>
+
+        <!-- Sidebar Actions -->
+        <div class="p-4 border-t border-slate-800 space-y-2">
+            <button onclick="configureGSheetUrl()" class="w-full bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-link"></i> <span>Set Spreadsheet URL</span>
+            </button>
+            <button onclick="fetchLatestDataFromGSheet(false)" class="w-full bg-slate-800 hover:bg-slate-700 text-brand-400 border border-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate"></i> <span>Sync Database Cloud</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN RIGHT CONTENT WRAPPER -->
+    <div class="flex-grow flex flex-col min-w-0 min-h-screen">
+
+        <!-- TOP BAR HEADER -->
+        <header class="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-20 shadow-sm flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span id="header-title" class="font-bold text-slate-900 text-sm sm:text-base">Dashboard Presensi</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Status Google Sheets Indicator -->
+                <div id="cloud-status-badge" class="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
+                    <i class="fa-solid fa-cloud text-emerald-600"></i>
+                    <span id="cloud-status-text">Google Sheets Live</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-grow p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6">
+
+            <!-- TOAST CONTAINER -->
+            <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+            <!-- 1. DASHBOARD TAB -->
+            <section id="page-dashboard" class="space-y-6">
+                <!-- Metrics Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 sm:gap-4">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg sm:text-xl font-bold flex-shrink-0">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-slate-500">Total Siswa Master</p>
+                            <h3 id="stat-total-siswa" class="text-lg sm:text-2xl font-bold text-slate-900">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 sm:gap-4">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg sm:text-xl font-bold flex-shrink-0">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-slate-500">Total Hadir Hari Ini</p>
+                            <h3 id="stat-hadir-today" class="text-lg sm:text-2xl font-bold text-emerald-600">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 sm:gap-4">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg sm:text-xl font-bold flex-shrink-0">
+                            <i class="fa-solid fa-user-clock"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-slate-500">Sakit / Izin Hari Ini</p>
+                            <h3 id="stat-izin-today" class="text-lg sm:text-2xl font-bold text-amber-600">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 sm:gap-4">
+                        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg sm:text-xl font-bold flex-shrink-0">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-slate-500">Alpha Hari Ini</p>
+                            <h3 id="stat-alpha-today" class="text-lg sm:text-2xl font-bold text-rose-600">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart & System Summary -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-slate-900 text-sm sm:text-base">Grafik Kehadiran Per Kelas</h3>
+                            <span id="today-date-text" class="text-xs font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full"></span>
+                        </div>
+                        <div class="h-64">
+                            <canvas id="chartPresensiKelas"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-sm mb-2">Pusat Database Google Sheets</h3>
+                            <p class="text-xs text-slate-600 leading-relaxed mb-4">
+                                Aplikasi ini berjalan secara <strong>Online Real-Time</strong>. Setiap kali Anda mengabsen di HP, data langsung tersimpan ke Google Sheets milik sekolah dan otomatis tersinkronisasi ke seluruh HP guru lain.
+                            </p>
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
+                                <div class="flex justify-between text-slate-600">
+                                    <span>Database Cloud:</span>
+                                    <span class="font-bold text-emerald-600">Google Sheets API Live</span>
+                                </div>
+                                <div class="flex justify-between text-slate-600">
+                                    <span>Format Catatan:</span>
+                                    <span class="font-semibold text-slate-800">Sakit, Izin, Alpha</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="switchTab('input-absen')" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-sm">
+                            <i class="fa-solid fa-pen-to-square"></i> Mulai Absen Sekarang
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. INPUT PRESENSI TAB -->
+            <section id="page-input-absen" class="hidden space-y-6">
+                <!-- Anchor Top View for autoscroll -->
+                <div id="top-input-anchor"></div>
+
+                <!-- Filter & Class Selector -->
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Tanggal Absensi</label>
+                            <input type="date" id="input-tgl-absen" onchange="renderAttendanceForm()" class="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2 font-semibold outline-none focus:ring-2 focus:ring-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Pilih Kelas yang Diabsen</label>
+                            <select id="select-kelas-absen" onchange="renderAttendanceForm()" class="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2 font-semibold outline-none focus:ring-2 focus:ring-brand-500 min-w-[140px]">
+                                <option value="">-- Pilih Kelas --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <button onclick="markAllCurrentClass('Hadir')" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold px-3 py-2 rounded-xl border border-emerald-200 transition-all">
+                            <i class="fa-solid fa-check-double"></i> Set Semua Hadir
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Input Table -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-600 text-xs font-semibold border-b border-slate-200">
+                                    <th class="p-4 w-12 text-center">No</th>
+                                    <th class="p-4">NISN</th>
+                                    <th class="p-4">Nama Siswa</th>
+                                    <th class="p-4">Kelas</th>
+                                    <th class="p-4 text-center min-w-[280px]">Status Kehadiran</th>
+                                    <th class="p-4 min-w-[180px]">Keterangan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-input-absen" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                                <!-- Dynamic Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SIMPAN & AUTOMATICALLY SCROLL TO TOP -->
+                <div class="flex justify-end pt-2">
+                    <button onclick="saveAttendanceToGSheet()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-8 rounded-2xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-3 text-sm">
+                        <i class="fa-solid fa-floppy-disk text-base"></i>
+                        <span>Simpan Absensi & Pilih Kelas Lain</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- 3. STATUS KELAS TAB -->
+            <section id="page-status-kelas" class="hidden space-y-6">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-base">Monitoring Status Absensi Kelas</h3>
+                        <p class="text-xs text-slate-500">Pantau status kelas yang sudah dan belum diabsen pada hari ini.</p>
+                    </div>
+                    <input type="date" id="status-kelas-tgl" onchange="renderStatusKelasTab()" class="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2 font-semibold outline-none">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- KELAS SUDAH DIABSEN (HIJAU) -->
+                    <div class="bg-white p-5 rounded-2xl border border-emerald-200 shadow-sm space-y-4">
+                        <div class="flex items-center justify-between border-b border-emerald-100 pb-3">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                                <h4 class="font-bold text-slate-900 text-sm">Sudah Diabsen</h4>
+                            </div>
+                            <span id="badge-count-sudah" class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">0 Kelas</span>
+                        </div>
+                        <div id="container-sudah-diabsen" class="space-y-3">
+                            <!-- List Kelas Sudah -->
+                        </div>
+                    </div>
+
+                    <!-- KELAS BELUM DIABSEN (MERAH) -->
+                    <div class="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm space-y-4">
+                        <div class="flex items-center justify-between border-b border-rose-100 pb-3">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-rose-500 animate-pulse"></span>
+                                <h4 class="font-bold text-slate-900 text-sm">Belum Diabsen</h4>
+                            </div>
+                            <span id="badge-count-belum" class="bg-rose-100 text-rose-800 text-xs font-bold px-2.5 py-1 rounded-full">0 Kelas</span>
+                        </div>
+                        <div id="container-belum-diabsen" class="space-y-3">
+                            <!-- List Kelas Belum -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. REKAP ABSENSI TAB (100% DIRECT FROM GSHEETS) -->
+            <section id="page-rekap" class="hidden space-y-6">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Tanggal Rekap</label>
+                            <input type="date" id="rekap-tgl" onchange="renderRekapTab()" class="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2 font-semibold outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">Filter Kelas</label>
+                            <select id="rekap-select-kelas" onchange="renderRekapTab()" class="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2 font-semibold outline-none">
+                                <option value="">-- Semua Kelas --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button onclick="exportRekapCSV()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-file-excel"></i> Export Rekap CSV
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-600 text-xs font-semibold border-b border-slate-200">
+                                    <th class="p-4 w-12 text-center">No</th>
+                                    <th class="p-4">Tanggal</th>
+                                    <th class="p-4">NISN</th>
+                                    <th class="p-4">Nama Siswa</th>
+                                    <th class="p-4">Kelas</th>
+                                    <th class="p-4 text-center">Status</th>
+                                    <th class="p-4">Keterangan</th>
+                                    <th class="p-4">Petugas</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-rekap-absen" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                                <!-- Dynamic Rekap Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. MASTER DATA SISWA TAB -->
+            <section id="page-master-siswa" class="hidden space-y-6">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-bold text-slate-900 text-base">Master Data Siswa</h3>
+                        <p class="text-xs text-slate-500">Data siswa yang terhubung dengan Google Sheets.</p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+                        <input type="file" id="csv-file-input" accept=".csv" class="hidden" onchange="handleCSVImport(event)">
+                        <button onclick="document.getElementById('csv-file-input').click()" class="text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-csv"></i> Upload CSV Siswa
+                        </button>
+                        <button onclick="openAddStudentModal()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-plus"></i> Tambah Siswa
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-600 text-xs font-semibold border-b border-slate-200">
+                                    <th class="p-4 w-12 text-center">No</th>
+                                    <th class="p-4">NISN</th>
+                                    <th class="p-4">Nama Lengkap</th>
+                                    <th class="p-4">Kelas</th>
+                                    <th class="p-4">L/P</th>
+                                    <th class="p-4 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-master-siswa" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                                <!-- Dynamic Master Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+            <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 font-medium">
+                &copy; 2026 SMP Negeri 1 Suboh — Integrated Google Sheets Attendance System
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- MODAL ADD/EDIT SISWA -->
+    <div id="modal-siswa" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <h3 id="modal-siswa-title" class="font-bold text-slate-900 text-lg">Tambah Siswa Baru</h3>
+            <form id="form-siswa" onsubmit="handleSaveStudent(event)" class="space-y-3 text-xs sm:text-sm">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">NISN Siswa</label>
+                    <input type="text" id="input-nisn" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Nama Lengkap Siswa</label>
+                    <input type="text" id="input-nama" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">Kelas</label>
+                        <input type="text" id="input-kelas" placeholder="Misal: 7A" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-600 mb-1">Jenis Kelamin</label>
+                        <select id="input-jk" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-brand-500 font-semibold">
+                            <option value="L">Laki-laki (L)</option>
+                            <option value="P">Perempuan (P)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-3">
+                    <button type="button" onclick="closeStudentModal()" class="px-4 py-2 rounded-xl text-slate-600 bg-slate-100 font-semibold hover:bg-slate-200">Batal</button>
+                    <button type="submit" class="px-4 py-2 rounded-xl text-white bg-brand-600 font-semibold hover:bg-brand-700 shadow-sm">Simpan Siswa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ENGINE CODE -->
+    <script>
+        // GLOBAL STATE
+        let gsheetUrl = localStorage.getItem('gsheet_sync_url') || '';
+        let masterStudents = JSON.parse(localStorage.getItem('absensi_master_students')) || [];
+        let rawAttendanceList = []; // Memory state fetched directly from Google Sheets
+        let tempAttendanceState = {};
+        let presensiChart = null;
+
+        // INIT APPLICATION
+        window.onload = function() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('input-tgl-absen').value = todayStr;
+            document.getElementById('rekap-tgl').value = todayStr;
+            document.getElementById('status-kelas-tgl').value = todayStr;
+            document.getElementById('today-date-text').innerText = formatDateIndo(todayStr);
+
+            // Load saved teacher profile
+            document.getElementById('select-peran-guru').value = localStorage.getItem('teacher_role') || 'Guru Piket';
+            document.getElementById('input-nama-guru').value = localStorage.getItem('teacher_name') || '';
+
+            // Fetch live data directly from Google Sheets
+            fetchLatestDataFromGSheet(true);
+
+            // AUTO SYNC LIVE EVERY 10 SECONDS ACROSS DEVICES
+            setInterval(() => {
+                fetchLatestDataFromGSheet(true);
+            }, 10000);
+        };
+
+        function saveTeacherProfile() {
+            localStorage.setItem('teacher_role', document.getElementById('select-peran-guru').value);
+            localStorage.setItem('teacher_name', document.getElementById('input-nama-guru').value);
+        }
+
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bg = type === 'success' ? 'bg-emerald-600 text-white' : type === 'error' ? 'bg-rose-600 text-white' : 'bg-slate-800 text-white';
+            toast.className = `${bg} px-4 py-3 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 transition-all duration-300 pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${msg}`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function configureGSheetUrl() {
+            const inputUrl = prompt("Masukkan URL Web App Google Sheets (/exec):", gsheetUrl);
+            if (inputUrl !== null && inputUrl.trim() !== "") {
+                gsheetUrl = inputUrl.trim();
+                localStorage.setItem('gsheet_sync_url', gsheetUrl);
+                showToast("URL Google Sheets berhasil disimpan!", "success");
+                fetchLatestDataFromGSheet(false);
+            }
+        }
+
+        async function fetchLatestDataFromGSheet(isSilent = false) {
+            const badge = document.getElementById('cloud-status-text');
+            if (!gsheetUrl) {
+                if (badge) badge.innerText = "Google Sheets Belum Set";
+                return;
+            }
+
+            if (!isSilent && badge) badge.innerText = "Pulling Cloud...";
+
+            try {
+                const res = await fetch(gsheetUrl);
+                const data = await res.json();
+
+                if (data) {
+                    if (Array.isArray(data.students) && data.students.length > 0) {
+                        masterStudents = data.students;
+                        localStorage.setItem('absensi_master_students', JSON.stringify(masterStudents));
+                    }
+                    if (Array.isArray(data.attendance)) {
+                        rawAttendanceList = data.attendance;
+                    }
+                }
+
+                renderAllTabs();
+                if (badge) badge.innerText = "Google Sheets Live";
+            } catch (err) {
+                console.error("Fetch GSheet Error:", err);
+                if (!isSilent && badge) badge.innerText = "Offline Mode";
+            }
+        }
+
+        function switchTab(tabId) {
+            const tabs = ['dashboard', 'input-absen', 'status-kelas', 'rekap', 'master-siswa'];
+            const titles = {
+                'dashboard': 'Dashboard Presensi',
+                'input-absen': 'Input Presensi Siswa',
+                'status-kelas': 'Monitoring Status Kelas',
+                'rekap': 'Rekapitulasi Ketidakhadiran',
+                'master-siswa': 'Master Data Siswa'
+            };
+
+            tabs.forEach(t => {
+                document.getElementById(`page-${t}`).classList.add('hidden');
+                const btn = document.getElementById(`nav-${t}`);
+                if (btn) btn.className = "w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl flex items-center gap-3 transition-all text-slate-400 hover:text-white hover:bg-slate-800";
+            });
+
+            document.getElementById(`page-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) activeBtn.className = "w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl flex items-center gap-3 transition-all bg-brand-600 text-white shadow-md shadow-brand-600/20";
+            document.getElementById('header-title').innerText = titles[tabId] || 'Sistem Absensi';
+
+            // Auto Fetch terbaru dari Google Sheets saat pindah tab
+            fetchLatestDataFromGSheet(true);
+        }
+
+        function formatDateIndo(dateStr) {
+            if (!dateStr) return '';
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            return new Date(dateStr).toLocaleDateString('id-ID', options);
+        }
+
+        // ================= RENDERING LOGIC ================= //
+
+        function renderAllTabs() {
+            populateClassDropdowns();
+            renderDashboardTab();
+            renderAttendanceForm();
+            renderStatusKelasTab();
+            renderRekapTab();
+            renderMasterSiswaTab();
+        }
+
+        function populateClassDropdowns() {
+            const classes = [...new Set(masterStudents.map(s => s.kelas))].sort();
+            
+            const selectAbsen = document.getElementById('select-kelas-absen');
+            const curAbsen = selectAbsen.value;
+            selectAbsen.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+            classes.forEach(c => selectAbsen.innerHTML += `<option value="${c}">${c}</option>`);
+            if (classes.includes(curAbsen)) selectAbsen.value = curAbsen;
+
+            const selectRekap = document.getElementById('rekap-select-kelas');
+            const curRekap = selectRekap.value;
+            selectRekap.innerHTML = '<option value="">-- Semua Kelas --</option>';
+            classes.forEach(c => selectRekap.innerHTML += `<option value="${c}">${c}</option>`);
+            if (classes.includes(curRekap)) selectRekap.value = curRekap;
+        }
+
+        // 1. DASHBOARD
+        function renderDashboardTab() {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayAbsence = rawAttendanceList.filter(a => a.tgl === todayStr && a.status !== 'Hadir');
+
+            document.getElementById('stat-total-siswa').innerText = masterStudents.length;
+
+            let countIzin = 0;
+            let countAlpha = 0;
+
+            todayAbsence.forEach(a => {
+                if (a.status === 'Sakit' || a.status === 'Izin') countIzin++;
+                if (a.status === 'Alpha') countAlpha++;
+            });
+
+            const totalHadir = Math.max(0, masterStudents.length - (countIzin + countAlpha));
+
+            document.getElementById('stat-hadir-today').innerText = totalHadir;
+            document.getElementById('stat-izin-today').innerText = countIzin;
+            document.getElementById('stat-alpha-today').innerText = countAlpha;
+
+            renderDashboardChart();
+        }
+
+        function renderDashboardChart() {
+            const ctx = document.getElementById('chartPresensiKelas');
+            if (!ctx) return;
+
+            const classes = [...new Set(masterStudents.map(s => s.kelas))].sort();
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayAbsence = rawAttendanceList.filter(a => a.tgl === todayStr && a.status !== 'Hadir');
+
+            const hadirData = [];
+            const nonHadirData = [];
+
+            classes.forEach(c => {
+                const classStudents = masterStudents.filter(s => s.kelas === c);
+                const classAbsence = todayAbsence.filter(a => a.kelas === c);
+                
+                nonHadirData.push(classAbsence.length);
+                hadirData.push(Math.max(0, classStudents.length - classAbsence.length));
+            });
+
+            if (presensiChart) presensiChart.destroy();
+
+            presensiChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: classes,
+                    datasets: [
+                        { label: 'Hadir', data: hadirData, backgroundColor: '#10b981', borderRadius: 6 },
+                        { label: 'Tidak Hadir', data: nonHadirData, backgroundColor: '#f43f5e', borderRadius: 6 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+                }
+            });
+        }
+
+        // 2. INPUT PRESENSI
+        function renderAttendanceForm() {
+            const selectedClass = document.getElementById('select-kelas-absen').value;
+            const tbody = document.getElementById('tbody-input-absen');
+            tbody.innerHTML = '';
+
+            if (!selectedClass) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-medium">Silakan pilih kelas terlebih dahulu.</td></tr>`;
+                return;
+            }
+
+            const classStudents = masterStudents.filter(s => s.kelas === selectedClass);
+            if (classStudents.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-medium">Tidak ada siswa terdaftar di kelas ${selectedClass}.</td></tr>`;
+                return;
+            }
+
+            classStudents.forEach((s, idx) => {
+                if (!tempAttendanceState[s.nisn]) {
+                    tempAttendanceState[s.nisn] = { status: 'Hadir', note: '' };
+                }
+
+                const currentStatus = tempAttendanceState[s.nisn].status;
+                const currentNote = tempAttendanceState[s.nisn].note;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-all";
+                tr.innerHTML = `
+                    <td class="p-4 text-center font-medium text-slate-500">${idx + 1}</td>
+                    <td class="p-4 font-mono font-medium text-slate-600">${s.nisn}</td>
+                    <td class="p-4 font-semibold text-slate-900">${s.nama}</td>
+                    <td class="p-4 font-medium text-slate-600">${s.kelas}</td>
+                    <td class="p-4 text-center">
+                        <div class="inline-flex rounded-xl bg-slate-100 p-1 gap-1">
+                            <button onclick="setStudentStatus('${s.nisn}', 'Hadir')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentStatus === 'Hadir' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}">Hadir</button>
+                            <button onclick="setStudentStatus('${s.nisn}', 'Sakit')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentStatus === 'Sakit' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}">Sakit</button>
+                            <button onclick="setStudentStatus('${s.nisn}', 'Izin')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentStatus === 'Izin' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}">Izin</button>
+                            <button onclick="setStudentStatus('${s.nisn}', 'Alpha')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentStatus === 'Alpha' ? 'bg-rose-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'}">Alpha</button>
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <input type="text" value="${currentNote}" placeholder="Catatan..." onchange="setStudentNote('${s.nisn}', this.value)" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-brand-500">
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function setStudentStatus(nisn, status) {
+            if (!tempAttendanceState[nisn]) tempAttendanceState[nisn] = { status: 'Hadir', note: '' };
+            tempAttendanceState[nisn].status = status;
+            renderAttendanceForm();
+        }
+
+        function setStudentNote(nisn, note) {
+            if (!tempAttendanceState[nisn]) tempAttendanceState[nisn] = { status: 'Hadir', note: '' };
+            tempAttendanceState[nisn].note = note;
+        }
+
+        function markAllCurrentClass(status) {
+            const selectedClass = document.getElementById('select-kelas-absen').value;
+            if (!selectedClass) return;
+            const classStudents = masterStudents.filter(s => s.kelas === selectedClass);
+            classStudents.forEach(s => {
+                if (!tempAttendanceState[s.nisn]) tempAttendanceState[s.nisn] = { status: 'Hadir', note: '' };
+                tempAttendanceState[s.nisn].status = status;
+            });
+            renderAttendanceForm();
+        }
+
+        async function saveAttendanceToGSheet() {
+            const selectedClass = document.getElementById('select-kelas-absen').value;
+            const selectedDate = document.getElementById('input-tgl-absen').value;
+
+            if (!selectedClass) {
+                showToast("Silakan pilih kelas terlebih dahulu!", "error");
+                return;
+            }
+
+            if (!gsheetUrl) {
+                showToast("Silakan atur URL Google Sheets terlebih dahulu!", "error");
+                return;
+            }
+
+            const classStudents = masterStudents.filter(s => s.kelas === selectedClass);
+            const role = document.getElementById('select-peran-guru').value || 'Guru Piket';
+            const guruName = document.getElementById('input-nama-guru').value || 'Guru';
+
+            const payloadData = [];
+
+            classStudents.forEach(s => {
+                const st = tempAttendanceState[s.nisn] || { status: 'Hadir', note: '' };
+                payloadData.push({
+                    tgl: selectedDate,
+                    nisn: s.nisn,
+                    nama: s.nama,
+                    kelas: s.kelas,
+                    status: st.status,
+                    note: st.note,
+                    role: role,
+                    guruName: guruName
+                });
+            });
+
+            // Kirim ke Google Sheets API
+            showToast("Mengirim data ke Google Sheets Cloud...", "info");
+
+            try {
+                await fetch(gsheetUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'save_attendance',
+                        data: payloadData
+                    })
+                });
+
+                showToast(`Absensi Kelas ${selectedClass} Berhasil Disimpan!`, "success");
+
+                // Clear temporary inputs
+                tempAttendanceState = {};
+                document.getElementById('select-kelas-absen').value = '';
+
+                // Scroll ke atas otomatis
+                document.getElementById('top-input-anchor').scrollIntoView({ behavior: 'smooth' });
+
+                // Refresh data terbaru dari cloud
+                setTimeout(() => fetchLatestDataFromGSheet(true), 1200);
+
+            } catch (err) {
+                console.error("Save GSheet Error:", err);
+                showToast("Gagal terhubung ke Google Sheets Cloud!", "error");
+            }
+        }
+
+        // 3. STATUS KELAS
+        function renderStatusKelasTab() {
+            const selectedDate = document.getElementById('status-kelas-tgl').value;
+            const classes = [...new Set(masterStudents.map(s => s.kelas))].sort();
+
+            const containerSudah = document.getElementById('container-sudah-diabsen');
+            const containerBelum = document.getElementById('container-belum-diabsen');
+
+            containerSudah.innerHTML = '';
+            containerBelum.innerHTML = '';
+
+            let countSudah = 0;
+            let countBelum = 0;
+
+            classes.forEach(c => {
+                const dayClassAbsence = rawAttendanceList.filter(a => a.tgl === selectedDate && a.kelas === c);
+                // Jika ada entri di rawAttendanceList atau kelas tersebut sudah disimpan (minimal penanda/catatan)
+                const isSubmitted = dayClassAbsence.length > 0;
+
+                let sCount = 0, iCount = 0, aCount = 0;
+                dayClassAbsence.forEach(a => {
+                    if (a.status === 'Sakit') sCount++;
+                    if (a.status === 'Izin') iCount++;
+                    if (a.status === 'Alpha') aCount++;
+                });
+
+                if (isSubmitted) {
+                    countSudah++;
+                    containerSudah.innerHTML += `
+                        <div class="p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-200 flex items-center justify-between">
+                            <div>
+                                <h5 class="font-bold text-slate-900 text-sm">Kelas ${c}</h5>
+                                <p class="text-xs text-slate-500 font-medium">Sakit: ${sCount} | Izin: ${iCount} | Alpha: ${aCount}</p>
+                            </div>
+                            <span class="text-xs bg-emerald-600 text-white font-semibold px-2.5 py-1 rounded-lg">
+                                <i class="fa-solid fa-check"></i> Selesai
+                            </span>
+                        </div>
+                    `;
+                } else {
+                    countBelum++;
+                    containerBelum.innerHTML += `
+                        <div class="p-3.5 bg-rose-50/60 rounded-xl border border-rose-200 flex items-center justify-between">
+                            <div>
+                                <h5 class="font-bold text-slate-900 text-sm">Kelas ${c}</h5>
+                                <p class="text-xs text-slate-500 font-medium">Belum diabsen pada tanggal ini</p>
+                            </div>
+                            <button onclick="quickSelectClassForAbsen('${c}')" class="text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold px-2.5 py-1 rounded-lg transition-all shadow-sm">
+                                Absen Sekarang
+                            </button>
+                        </div>
+                    `;
+                }
+            });
+
+            document.getElementById('badge-count-sudah').innerText = `${countSudah} Kelas`;
+            document.getElementById('badge-count-belum').innerText = `${countBelum} Kelas`;
+        }
+
+        function quickSelectClassForAbsen(cName) {
+            switchTab('input-absen');
+            document.getElementById('select-kelas-absen').value = cName;
+            renderAttendanceForm();
+        }
+
+        // 4. REKAP ABSENSI (100% DIRECT DATA FROM GSHEET)
+        function renderRekapTab() {
+            const selectedDate = document.getElementById('rekap-tgl').value;
+            const selectedClass = document.getElementById('rekap-select-kelas').value;
+            const tbody = document.getElementById('tbody-rekap-absen');
+            tbody.innerHTML = '';
+
+            const filteredRecords = rawAttendanceList.filter(a => {
+                const matchDate = !selectedDate || a.tgl === selectedDate;
+                const matchClass = !selectedClass || a.kelas === selectedClass;
+                return matchDate && matchClass && a.status !== 'Hadir';
+            });
+
+            filteredRecords.forEach((rec, idx) => {
+                const badgeBg = rec.status === 'Sakit' ? 'bg-amber-100 text-amber-800' : rec.status === 'Izin' ? 'bg-blue-100 text-blue-800' : 'bg-rose-100 text-rose-800';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-all";
+                tr.innerHTML = `
+                    <td class="p-4 text-center font-medium text-slate-500">${idx + 1}</td>
+                    <td class="p-4 font-medium text-slate-600">${rec.tgl}</td>
+                    <td class="p-4 font-mono font-medium text-slate-600">${rec.nisn}</td>
+                    <td class="p-4 font-semibold text-slate-900">${rec.nama}</td>
+                    <td class="p-4 font-medium text-slate-600">${rec.kelas}</td>
+                    <td class="p-4 text-center">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeBg}">${rec.status}</span>
+                    </td>
+                    <td class="p-4 text-slate-600">${rec.note || '-'}</td>
+                    <td class="p-4 text-slate-500 font-medium">${rec.guruName || '-'} (${rec.role || '-'})</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if (filteredRecords.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-400 font-medium">Tidak ada data ketidakhadiran (Sakit/Izin/Alpha) pada tanggal ini di Database Google Sheets.</td></tr>`;
+            }
+        }
+
+        function exportRekapCSV() {
+            const selectedDate = document.getElementById('rekap-tgl').value;
+            const filteredRecords = rawAttendanceList.filter(a => (!selectedDate || a.tgl === selectedDate) && a.status !== 'Hadir');
+
+            if (filteredRecords.length === 0) {
+                showToast("Tidak ada data rekap untuk diexport!", "error");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,Tanggal,NISN,Nama Siswa,Kelas,Status,Keterangan,Petugas\n";
+            filteredRecords.forEach(r => {
+                csvContent += `"${r.tgl}","${r.nisn}","${r.nama}","${r.kelas}","${r.status}","${r.note}","${r.guruName}"\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Rekap_Absensi_${selectedDate || 'Semua'}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 5. MASTER DATA SISWA
+        function renderMasterSiswaTab() {
+            const tbody = document.getElementById('tbody-master-siswa');
+            tbody.innerHTML = '';
+
+            if (masterStudents.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-medium">Belum ada data siswa di Google Sheets. Silakan Upload CSV atau Tambah Siswa.</td></tr>`;
+                return;
+            }
+
+            masterStudents.forEach((s, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-all";
+                tr.innerHTML = `
+                    <td class="p-4 text-center font-medium text-slate-500">${idx + 1}</td>
+                    <td class="p-4 font-mono font-medium text-slate-600">${s.nisn}</td>
+                    <td class="p-4 font-semibold text-slate-900">${s.nama}</td>
+                    <td class="p-4 font-medium text-slate-600">${s.kelas}</td>
+                    <td class="p-4 font-medium text-slate-600">${s.jk || 'L'}</td>
+                    <td class="p-4 text-center">
+                        <button onclick="deleteStudent('${s.nisn}')" class="text-rose-600 hover:text-rose-800 p-1.5 rounded-lg hover:bg-rose-50 transition-all">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openAddStudentModal() {
+            document.getElementById('form-siswa').reset();
+            document.getElementById('modal-siswa').classList.remove('hidden');
+        }
+
+        function closeStudentModal() {
+            document.getElementById('modal-siswa').classList.add('hidden');
+        }
+
+        function handleSaveStudent(e) {
+            e.preventDefault();
+            const nisn = document.getElementById('input-nisn').value.trim();
+            const nama = document.getElementById('input-nama').value.trim();
+            const kelas = document.getElementById('input-kelas').value.trim();
+            const jk = document.getElementById('input-jk').value;
+
+            const idx = masterStudents.findIndex(s => s.nisn === nisn);
+            if (idx >= 0) {
+                masterStudents[idx] = { nisn, nama, kelas, jk };
+            } else {
+                masterStudents.push({ nisn, nama, kelas, jk });
+            }
+
+            localStorage.setItem('absensi_master_students', JSON.stringify(masterStudents));
+            closeStudentModal();
+            renderAllTabs();
+            showToast("Siswa berhasil ditambahkan!", "success");
+        }
+
+        function deleteStudent(nisn) {
+            if (!confirm(`Hapus siswa dengan NISN ${nisn}?`)) return;
+            masterStudents = masterStudents.filter(s => s.nisn !== nisn);
+            localStorage.setItem('absensi_master_students', JSON.stringify(masterStudents));
+            renderAllTabs();
+            showToast("Siswa berhasil dihapus", "info");
+        }
+
+        function handleCSVImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const lines = text.split('\n');
+                let count = 0;
+
+                lines.forEach((line, index) => {
+                    if (index === 0 && line.toLowerCase().includes('nisn')) return;
+                    const cols = line.split(',').map(c => c.replace(/"/g, '').trim());
+                    if (cols.length >= 3 && cols[0] !== '') {
+                        const nisn = cols[0];
+                        const nama = cols[1];
+                        const kelas = cols[2];
+                        const jk = cols[3] || 'L';
+
+                        const idx = masterStudents.findIndex(s => s.nisn === nisn);
+                        if (idx >= 0) {
+                            masterStudents[idx] = { nisn, nama, kelas, jk };
+                        } else {
+                            masterStudents.push({ nisn, nama, kelas, jk });
+                        }
+                        count++;
+                    }
+                });
+
+                localStorage.setItem('absensi_master_students', JSON.stringify(masterStudents));
+                renderAllTabs();
+                showToast(`Berhasil mengimpor ${count} siswa!`, "success");
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
