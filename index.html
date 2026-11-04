@@ -443,14 +443,7 @@
         // GLOBAL STATE
         let gsheetUrl = localStorage.getItem('gsheet_sync_url') || '';
         let masterStudents = JSON.parse(localStorage.getItem('absensi_master_students')) || [];
-        let masterTeachers = JSON.parse(localStorage.getItem('absensi_master_teachers')) || [
-            "Bpk. Ahmad Fauzi, S.Pd",
-            "Ibu Siti Nurhaliza, M.Pd",
-            "Bpk. Bambang Suherman, S.T",
-            "Ibu Dewi Sartika, S.Pd",
-            "Bpk. Hendra Wijaya, S.Pd",
-            "Ibu Rina Melati, S.Kom"
-        ];
+        let masterTeachers = JSON.parse(localStorage.getItem('absensi_master_teachers')) || [];
         let rawAttendanceList = []; // Memory state fetched directly from Google Sheets
         let tempAttendanceState = {};
         let presensiChart = null;
@@ -465,12 +458,11 @@
             document.getElementById('status-kelas-tgl').value = todayStr;
             document.getElementById('today-date-text').innerText = formatDateIndo(todayStr);
 
-            // Populate Teachers Dropdown
+            // Populate Teachers Dropdown from initial state
             populateTeacherDropdown();
 
             // Load saved teacher profile
             document.getElementById('select-peran-guru').value = localStorage.getItem('teacher_role') || 'Guru Piket';
-            document.getElementById('select-nama-guru').value = localStorage.getItem('teacher_name') || '';
 
             // Fetch live data directly from Google Sheets
             fetchLatestDataFromGSheet(true);
@@ -485,9 +477,18 @@
             const selectTeacher = document.getElementById('select-nama-guru');
             const currentVal = selectTeacher.value || localStorage.getItem('teacher_name') || '';
             selectTeacher.innerHTML = '<option value="">-- Pilih Nama Guru --</option>';
-            masterTeachers.forEach(t => {
+
+            if (masterTeachers.length === 0) {
+                selectTeacher.innerHTML += `<option value="" disabled>(Sheet Data_Guru Kosong)</option>`;
+                return;
+            }
+
+            // Sort alphabetical
+            const sortedTeachers = [...masterTeachers].sort();
+            sortedTeachers.forEach(t => {
                 selectTeacher.innerHTML += `<option value="${t}">${t}</option>`;
             });
+
             if (masterTeachers.includes(currentVal)) {
                 selectTeacher.value = currentVal;
             }
