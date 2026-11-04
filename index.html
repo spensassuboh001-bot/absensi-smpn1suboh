@@ -843,8 +843,17 @@
             tbody.innerHTML = '';
 
             const filteredRecords = rawAttendanceList.filter(a => {
-                const matchDate = !selectedDate || a.tgl === selectedDate;
-                const matchClass = !selectedClass || a.kelas === selectedClass;
+                let matchDate = true;
+                if (selectedDate && a.tgl) {
+                    const cleanRecDate = a.tgl.trim().split('T')[0];
+                    matchDate = (cleanRecDate === selectedDate);
+                }
+
+                let matchClass = true;
+                if (selectedClass) {
+                    matchClass = (a.kelas === selectedClass);
+                }
+
                 return matchDate && matchClass && a.status !== 'Hadir';
             });
 
