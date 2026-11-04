@@ -60,8 +60,12 @@
                 <select id="select-peran-guru" onchange="saveTeacherProfile()" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 font-medium outline-none focus:border-brand-500">
                     <option value="Guru Piket">Guru Piket</option>
                     <option value="Wali Kelas">Guru Wali Kelas</option>
+                    <option value="Guru Mapel">Guru Mata Pelajaran</option>
                 </select>
-                <input type="text" id="input-nama-guru" placeholder="Nama Guru..." onchange="saveTeacherProfile()" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-500">
+                <!-- Ubah dari Input Ketik Manual menjadi Select Dropdown -->
+                <select id="select-nama-guru" onchange="saveTeacherProfile()" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-500 font-medium">
+                    <option value="">-- Pilih Nama Guru --</option>
+                </select>
             </div>
 
             <!-- Navigation Menu -->
@@ -79,7 +83,7 @@
                     <i class="fa-solid fa-calendar-check text-sm"></i> Rekap Absensi
                 </button>
                 <button onclick="switchTab('master-siswa')" id="nav-master-siswa" class="w-full px-3.5 py-2.5 text-xs font-semibold rounded-xl flex items-center gap-3 transition-all text-slate-400 hover:text-white hover:bg-slate-800">
-                    <i class="fa-solid fa-users text-sm"></i> Data Siswa
+                    <i class="fa-solid fa-lock text-sm text-amber-400"></i> Data Siswa (Admin)
                 </button>
             </nav>
         </div>
@@ -168,8 +172,18 @@
                             <h3 class="font-bold text-slate-900 text-sm sm:text-base">Grafik Kehadiran Per Kelas</h3>
                             <span id="today-date-text" class="text-xs font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full"></span>
                         </div>
-                        <div class="h-64">
+                        <div class="h-64 mb-6">
                             <canvas id="chartPresensiKelas"></canvas>
+                        </div>
+
+                        <!-- RINCIAN TOTAL SISWA TIDAK HADIR PER KELAS -->
+                        <div class="border-t border-slate-100 pt-4">
+                            <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <i class="fa-solid fa-circle-exclamation text-rose-500"></i> Rincian Ketidakhadiran Siswa Per Kelas (Hari Ini)
+                            </h4>
+                            <div id="dashboard-absence-summary-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                                <!-- Dynamic Breakdown Cards -->
+                            </div>
                         </div>
                     </div>
 
@@ -429,9 +443,19 @@
         // GLOBAL STATE
         let gsheetUrl = localStorage.getItem('gsheet_sync_url') || '';
         let masterStudents = JSON.parse(localStorage.getItem('absensi_master_students')) || [];
+        let masterTeachers = JSON.parse(localStorage.getItem('absensi_master_teachers')) || [
+            "Bpk. Ahmad Fauzi, S.Pd",
+            "Ibu Siti Nurhaliza, M.Pd",
+            "Bpk. Bambang Suherman, S.T",
+            "Ibu Dewi Sartika, S.Pd",
+            "Bpk. Hendra Wijaya, S.Pd",
+            "Ibu Rina Melati, S.Kom"
+        ];
         let rawAttendanceList = []; // Memory state fetched directly from Google Sheets
         let tempAttendanceState = {};
         let presensiChart = null;
+        let isAdminLoggedIn = false;
+        const ADMIN_PIN = "1234"; // Default PIN Admin
 
         // INIT APPLICATION
         window.onload = function() {
@@ -441,9 +465,12 @@
             document.getElementById('status-kelas-tgl').value = todayStr;
             document.getElementById('today-date-text').innerText = formatDateIndo(todayStr);
 
+            // Populate Teachers Dropdown
+            populateTeacherDropdown();
+
             // Load saved teacher profile
             document.getElementById('select-peran-guru').value = localStorage.getItem('teacher_role') || 'Guru Piket';
-            document.getElementById('input-nama-guru').value = localStorage.getItem('teacher_name') || '';
+            document.getElementById('select-nama-guru').value = localStorage.getItem('teacher_name') || '';
 
             // Fetch live data directly from Google Sheets
             fetchLatestDataFromGSheet(true);
@@ -454,9 +481,21 @@
             }, 10000);
         };
 
+        function populateTeacherDropdown() {
+            const selectTeacher = document.getElementById('select-nama-guru');
+            const currentVal = selectTeacher.value || localStorage.getItem('teacher_name') || '';
+            selectTeacher.innerHTML = '<option value="">-- Pilih Nama Guru --</option>';
+            masterTeachers.forEach(t => {
+                selectTeacher.innerHTML += `<option value="${t}">${t}</option>`;
+            });
+            if (masterTeachers.includes(currentVal)) {
+                selectTeacher.value = currentVal;
+            }
+        }
+
         function saveTeacherProfile() {
             localStorage.setItem('teacher_role', document.getElementById('select-peran-guru').value);
-            localStorage.setItem('teacher_name', document.getElementById('input-nama-guru').value);
+            localStorage.setItem('teacher_name', document.getElementById('select-nama-guru').value);
         }
 
         function showToast(msg, type = 'info') {
@@ -500,6 +539,11 @@
                         masterStudents = data.students;
                         localStorage.setItem('absensi_master_students', JSON.stringify(masterStudents));
                     }
+                    if (Array.isArray(data.teachers) && data.teachers.length > 0) {
+                        masterTeachers = data.teachers;
+                        localStorage.setItem('absensi_master_teachers', JSON.stringify(masterTeachers));
+                        populateTeacherDropdown();
+                    }
                     if (Array.isArray(data.attendance)) {
                         rawAttendanceList = data.attendance;
                     }
@@ -514,13 +558,27 @@
         }
 
         function switchTab(tabId) {
+            // PROTEKSI AKSES MENU DATA SISWA UNTUK ADMIN ONLY
+            if (tabId === 'master-siswa' && !isAdminLoggedIn) {
+                const pin = prompt("Akses Terbatas Khusus Admin!\nMasukkan PIN Keamanan Admin:");
+                if (pin === ADMIN_PIN) {
+                    isAdminLoggedIn = true;
+                    showToast("Login Admin Berhasil!", "success");
+                } else if (pin !== null) {
+                    showToast("PIN Admin Salah! Akses Ditolak.", "error");
+                    return;
+                } else {
+                    return;
+                }
+            }
+
             const tabs = ['dashboard', 'input-absen', 'status-kelas', 'rekap', 'master-siswa'];
             const titles = {
                 'dashboard': 'Dashboard Presensi',
                 'input-absen': 'Input Presensi Siswa',
                 'status-kelas': 'Monitoring Status Kelas',
                 'rekap': 'Rekapitulasi Ketidakhadiran',
-                'master-siswa': 'Master Data Siswa'
+                'master-siswa': 'Master Data Siswa (Admin)'
             };
 
             tabs.forEach(t => {
@@ -593,6 +651,46 @@
             document.getElementById('stat-alpha-today').innerText = countAlpha;
 
             renderDashboardChart();
+            renderDashboardAbsenceBreakdown();
+        }
+
+        function renderDashboardAbsenceBreakdown() {
+            const grid = document.getElementById('dashboard-absence-summary-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            const classes = [...new Set(masterStudents.map(s => s.kelas))].sort();
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayAbsence = rawAttendanceList.filter(a => a.tgl === todayStr && a.status !== 'Hadir');
+
+            classes.forEach(c => {
+                const classAbsence = todayAbsence.filter(a => a.kelas === c);
+                let sCount = 0, iCount = 0, aCount = 0;
+
+                classAbsence.forEach(a => {
+                    if (a.status === 'Sakit') sCount++;
+                    if (a.status === 'Izin') iCount++;
+                    if (a.status === 'Alpha') aCount++;
+                });
+
+                const totalAbs = classAbsence.length;
+                const cardBg = totalAbs > 0 ? 'bg-rose-50/70 border-rose-200' : 'bg-slate-50 border-slate-200';
+                const badgeColor = totalAbs > 0 ? 'text-rose-600 font-bold' : 'text-emerald-600 font-medium';
+
+                grid.innerHTML += `
+                    <div class="p-2.5 rounded-xl border ${cardBg} transition-all">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-bold text-slate-800 text-xs">Kelas ${c}</span>
+                            <span class="text-[11px] ${badgeColor}">${totalAbs > 0 ? `${totalAbs} Siswa` : 'Nihil'}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+                            <span class="text-amber-600">S: ${sCount}</span> • 
+                            <span class="text-blue-600">I: ${iCount}</span> • 
+                            <span class="text-rose-600">A: ${aCount}</span>
+                        </div>
+                    </div>
+                `;
+            });
         }
 
         function renderDashboardChart() {
@@ -707,9 +805,15 @@
         async function saveAttendanceToGSheet() {
             const selectedClass = document.getElementById('select-kelas-absen').value;
             const selectedDate = document.getElementById('input-tgl-absen').value;
+            const guruName = document.getElementById('select-nama-guru').value;
 
             if (!selectedClass) {
                 showToast("Silakan pilih kelas terlebih dahulu!", "error");
+                return;
+            }
+
+            if (!guruName) {
+                showToast("Silakan pilih Nama Guru Pengabsen terlebih dahulu!", "error");
                 return;
             }
 
@@ -720,7 +824,6 @@
 
             const classStudents = masterStudents.filter(s => s.kelas === selectedClass);
             const role = document.getElementById('select-peran-guru').value || 'Guru Piket';
-            const guruName = document.getElementById('input-nama-guru').value || 'Guru';
 
             const payloadData = [];
 
