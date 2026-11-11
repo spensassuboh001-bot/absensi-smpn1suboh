@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistem Absensi SMPN 1 Suboh - Google Sheets Cloud Sync</title>
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Absensi SMPN 1 Suboh">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3429/3429149.png">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -109,6 +116,12 @@
             </div>
 
             <div class="flex items-center gap-2">
+                <!-- PWA Install Button (Hidden by default, shown when install prompt is ready) -->
+                <button id="pwa-install-btn" onclick="installPWA()" class="hidden text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-download"></i>
+                    <span>Install Aplikasi (APK)</span>
+                </button>
+
                 <!-- Status Google Sheets Indicator -->
                 <div id="cloud-status-badge" class="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
                     <i class="fa-solid fa-cloud text-emerald-600"></i>
@@ -449,6 +462,70 @@
         let presensiChart = null;
         let isAdminLoggedIn = false;
         const ADMIN_PIN = "1234"; // Default PIN Admin
+        let deferredPrompt = null; // PWA Deferred Install Prompt
+
+        // PWA REGISTRATION & MANIFEST INJECTION
+        (function initPWA() {
+            // Dynamic Manifest
+            const manifestObj = {
+                name: "Absensi Siswa SMPN 1 Suboh",
+                short_name: "Absensi SMPN1",
+                start_url: "./",
+                display: "standalone",
+                background_color: "#0f172a",
+                theme_color: "#0f172a",
+                icons: [
+                    {
+                        src: "https://cdn-icons-png.flaticon.com/512/3429/3429149.png",
+                        sizes: "512x512",
+                        type: "image/png",
+                        purpose: "any maskable"
+                    }
+                ]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
+            const manifestURL = URL.createObjectURL(manifestBlob);
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = manifestURL;
+            document.head.appendChild(link);
+
+            // Register Inline Service Worker
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', (e) => self.skipWaiting());
+                    self.addEventListener('activate', (e) => self.clients.claim());
+                    self.addEventListener('fetch', (e) => {
+                        // Network first policy
+                        e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+                    });
+                `;
+                const swBlob = new Blob([swCode], { type: 'text/javascript' });
+                const swURL = URL.createObjectURL(swBlob);
+                navigator.serviceWorker.register(swURL).catch(err => console.log('SW reg error:', err));
+            }
+        })();
+
+        // Listen for PWA Install Prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const btn = document.getElementById('pwa-install-btn');
+            if (btn) btn.classList.remove('hidden');
+        });
+
+        function installPWA() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    showToast("Aplikasi berhasil dipasang di Layar Utama!", "success");
+                    const btn = document.getElementById('pwa-install-btn');
+                    if (btn) btn.classList.add('hidden');
+                }
+                deferredPrompt = null;
+            });
+        }
 
         // INIT APPLICATION
         window.onload = function() {
