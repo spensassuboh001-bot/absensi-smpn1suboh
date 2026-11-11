@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Absensi SMPN 1 Suboh">
-    <link rel="apple-touch-icon" href="https://i.ibb.co/3mNfS0v/logo-smp-3D.jpg">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><path d='M20 20 L80 20 L80 80 L20 80 Z' fill='%230284c7'/><text x='50' y='55' font-size='22' font-weight='bold' fill='white' text-anchor='middle'>SMP1</text><text x='50' y='72' font-size='12' fill='%23f59e0b' text-anchor='middle'>SUBOH</text></svg>">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -53,7 +53,29 @@
             <!-- Header Logo -->
             <div class="p-5 flex items-center gap-3 border-b border-slate-800">
                 <div class="w-10 h-10 rounded-xl bg-slate-800 p-0.5 flex items-center justify-center shadow-lg shadow-brand-500/20 overflow-hidden flex-shrink-0">
-                    <img src="https://i.ibb.co/3mNfS0v/logo-smp-3D.jpg" alt="Logo SMPN 1 Suboh" class="w-full h-full object-contain rounded-lg" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3429/3429149.png'">
+                    <svg viewBox="0 0 120 120" class="w-full h-full rounded-lg" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#1e40af" />
+                                <stop offset="100%" stop-color="#1e1b4b" />
+                            </linearGradient>
+                            <linearGradient id="starGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#fef08a" />
+                                <stop offset="100%" stop-color="#eab308" />
+                            </linearGradient>
+                        </defs>
+                        <!-- Shield Outline -->
+                        <path d="M60 10 C 95 10, 110 25, 110 50 C 110 85, 80 105, 60 115 C 40 105, 10 85, 10 50 C 10 25, 25 10, 60 10 Z" fill="url(#shieldGrad)" stroke="#38bdf8" stroke-width="3" />
+                        <!-- Golden Star Background -->
+                        <polygon points="60,25 69,45 90,45 73,58 79,78 60,65 41,78 47,58 30,45 51,45" fill="url(#starGrad)" />
+                        <!-- Red Number 1 -->
+                        <path d="M54 42 L63 36 L63 80 L53 80 L53 42 Z" fill="#dc2626" stroke="#ffffff" stroke-width="1.5" />
+                        <!-- Header Text -->
+                        <text x="60" y="24" font-size="10" font-weight="900" fill="#fef08a" text-anchor="middle" font-family="sans-serif">SMP NEGERI</text>
+                        <!-- Ribbon SUBOH -->
+                        <rect x="25" y="85" width="70" height="16" rx="4" fill="#ef4444" stroke="#ffffff" stroke-width="1" />
+                        <text x="60" y="97" font-size="11" font-weight="900" fill="#ffffff" text-anchor="middle" font-family="sans-serif">SUBOH</text>
+                    </svg>
                 </div>
                 <div>
                     <h1 class="font-bold text-white text-base leading-tight">SMPN 1 Suboh</h1>
@@ -466,6 +488,10 @@
 
         // PWA REGISTRATION & MANIFEST INJECTION
         (function initPWA() {
+            // Self-contained Data SVG Icon for PWA Manifest (Prevents image hosting breakage)
+            const pwaIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="%230f172a"/><path d="M256 40 C 400 40, 470 100, 470 210 C 470 360, 340 450, 256 490 C 172 450, 42 360, 42 210 C 42 100, 112 40, 256 40 Z" fill="%231e40af" stroke="%2338bdf8" stroke-width="12"/><polygon points="256,110 295,190 385,190 312,250 340,335 256,280 172,335 200,250 127,190 217,190" fill="%23eab308"/><text x="256" y="90" font-size="38" font-weight="900" fill="%23fef08a" text-anchor="middle" font-family="sans-serif">SMP NEGERI 1</text><rect x="100" y="375" width="312" height="65" rx="16" fill="%23dc2626" stroke="%23ffffff" stroke-width="6"/><text x="256" y="422" font-size="44" font-weight="900" fill="%23ffffff" text-anchor="middle" font-family="sans-serif">SUBOH</text></svg>`;
+            const pwaIconUrl = "data:image/svg+xml;utf8," + pwaIconSvg;
+
             // Dynamic Manifest
             const manifestObj = {
                 name: "Absensi Siswa SMPN 1 Suboh",
@@ -476,9 +502,9 @@
                 theme_color: "#0f172a",
                 icons: [
                     {
-                        src: "https://i.ibb.co/3mNfS0v/logo-smp-3D.jpg",
+                        src: pwaIconUrl,
                         sizes: "512x512",
-                        type: "image/jpeg",
+                        type: "image/svg+xml",
                         purpose: "any maskable"
                     }
                 ]
