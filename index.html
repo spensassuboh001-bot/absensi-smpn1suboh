@@ -116,8 +116,8 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <!-- PWA Install Button (Hidden by default, shown when install prompt is ready) -->
-                <button id="pwa-install-btn" onclick="installPWA()" class="hidden text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-sm">
+                <!-- PWA Install Button (Permanently visible now) -->
+                <button id="pwa-install-btn" onclick="installPWA()" class="text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-sm">
                     <i class="fa-solid fa-download"></i>
                     <span>Install Aplikasi (APK)</span>
                 </button>
@@ -510,21 +510,21 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            const btn = document.getElementById('pwa-install-btn');
-            if (btn) btn.classList.remove('hidden');
         });
 
         function installPWA() {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then((choiceResult) => {
-                if (choiceResult.outcome === 'accepted') {
-                    showToast("Aplikasi berhasil dipasang di Layar Utama!", "success");
-                    const btn = document.getElementById('pwa-install-btn');
-                    if (btn) btn.classList.add('hidden');
-                }
-                deferredPrompt = null;
-            });
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        showToast("Aplikasi berhasil dipasang di Layar Utama!", "success");
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                // Fallback guidance for manual install in Chrome/Safari/Edge
+                alert("Cara Menginstal Aplikasi di HP:\n\n1. Klik ikon TITIK TIGA (⋮) di pojok kanan atas browser Chrome Anda.\n2. Pilih 'Tambahkan ke Layar Utama' (Add to Home screen) atau 'Instal Aplikasi'.\n\nAplikasi akan langsung muncul di halaman utama HP Anda seperti aplikasi bawaan!");
+            }
         }
 
         // INIT APPLICATION
