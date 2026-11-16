@@ -488,23 +488,100 @@
 
         // PWA REGISTRATION & MANIFEST INJECTION
         (function initPWA() {
-            // Self-contained Data SVG Icon for PWA Manifest (Prevents image hosting breakage)
-            const pwaIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="100" fill="%230f172a"/><path d="M256 40 C 400 40, 470 100, 470 210 C 470 360, 340 450, 256 490 C 172 450, 42 360, 42 210 C 42 100, 112 40, 256 40 Z" fill="%231e40af" stroke="%2338bdf8" stroke-width="12"/><polygon points="256,110 295,190 385,190 312,250 340,335 256,280 172,335 200,250 127,190 217,190" fill="%23eab308"/><text x="256" y="90" font-size="38" font-weight="900" fill="%23fef08a" text-anchor="middle" font-family="sans-serif">SMP NEGERI 1</text><rect x="100" y="375" width="312" height="65" rx="16" fill="%23dc2626" stroke="%23ffffff" stroke-width="6"/><text x="256" y="422" font-size="44" font-weight="900" fill="%23ffffff" text-anchor="middle" font-family="sans-serif">SUBOH</text></svg>`;
-            const pwaIconUrl = "data:image/svg+xml;utf8," + pwaIconSvg;
+            // Render Logo 3D Sekolah ke Canvas PNG 512x512 agar valid 100% di PWABuilder Android APK
+            function generatePngIcon(size) {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
 
-            // Dynamic Manifest
+                // Background Rounded Dark Slate
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.roundRect(0, 0, size, size, size * 0.18);
+                ctx.fill();
+
+                // Shield Gradient Blue
+                const grad = ctx.createLinearGradient(0, 0, size, size);
+                grad.addColorStop(0, '#1e40af');
+                grad.addColorStop(1, '#1e1b4b');
+                ctx.fillStyle = grad;
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = size * 0.025;
+
+                ctx.beginPath();
+                ctx.moveTo(size * 0.5, size * 0.1);
+                ctx.bezierCurveTo(size * 0.8, size * 0.1, size * 0.9, size * 0.22, size * 0.9, size * 0.42);
+                ctx.bezierCurveTo(size * 0.9, size * 0.72, size * 0.65, size * 0.88, size * 0.5, size * 0.94);
+                ctx.bezierCurveTo(size * 0.35, size * 0.88, size * 0.1, size * 0.72, size * 0.1, size * 0.42);
+                ctx.bezierCurveTo(size * 0.1, size * 0.22, size * 0.2, size * 0.1, size * 0.5, size * 0.1);
+                ctx.fill();
+                ctx.stroke();
+
+                // Golden Star
+                ctx.fillStyle = '#eab308';
+                ctx.beginPath();
+                const cx = size * 0.5, cy = size * 0.48, spikes = 5, outerRadius = size * 0.24, innerRadius = size * 0.11;
+                let rot = Math.PI / 2 * 3, x = cx, y = cy, step = Math.PI / spikes;
+                ctx.moveTo(cx, cy - outerRadius);
+                for (let i = 0; i < spikes; i++) {
+                    x = cx + Math.cos(rot) * outerRadius;
+                    y = cy + Math.sin(rot) * outerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+                    x = cx + Math.cos(rot) * innerRadius;
+                    y = cy + Math.sin(rot) * innerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                // Header Text SMP NEGERI
+                ctx.fillStyle = '#fef08a';
+                ctx.font = `900 ${Math.floor(size * 0.075)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.fillText('SMP NEGERI', size * 0.5, size * 0.22);
+
+                // Red Number 1
+                ctx.fillStyle = '#dc2626';
+                ctx.fillRect(size * 0.45, size * 0.32, size * 0.1, size * 0.32);
+
+                // Ribbon SUBOH
+                ctx.fillStyle = '#dc2626';
+                ctx.fillRect(size * 0.22, size * 0.72, size * 0.56, size * 0.13);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = `900 ${Math.floor(size * 0.085)}px sans-serif`;
+                ctx.fillText('SUBOH', size * 0.5, size * 0.81);
+
+                return canvas.toDataURL('image/png');
+            }
+
+            const icon192 = generatePngIcon(192);
+            const icon512 = generatePngIcon(512);
+
+            // Dynamic Manifest sesuai standar ketat PWABuilder
             const manifestObj = {
                 name: "Absensi Siswa SMPN 1 Suboh",
                 short_name: "Absensi SMPN1",
-                start_url: "./",
+                description: "Sistem Informasi Presensi dan Rekap Kehadiran Siswa SMP Negeri 1 Suboh Terintegrasi Cloud",
+                start_url: window.location.origin + "/",
+                scope: window.location.origin + "/",
                 display: "standalone",
+                orientation: "portrait",
                 background_color: "#0f172a",
                 theme_color: "#0f172a",
                 icons: [
                     {
-                        src: pwaIconUrl,
+                        src: icon192,
+                        sizes: "192x192",
+                        type: "image/png",
+                        purpose: "any"
+                    },
+                    {
+                        src: icon512,
                         sizes: "512x512",
-                        type: "image/svg+xml",
+                        type: "image/png",
                         purpose: "any maskable"
                     }
                 ]
