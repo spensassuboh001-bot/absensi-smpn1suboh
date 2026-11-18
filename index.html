@@ -296,9 +296,9 @@
 
                 <!-- SIMPAN & AUTOMATICALLY SCROLL TO TOP -->
                 <div class="flex justify-end pt-2">
-                    <button onclick="saveAttendanceToGSheet()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-8 rounded-2xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-3 text-sm">
+                    <button id="btn-simpan-absen" onclick="saveAttendanceToGSheet()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-3.5 px-8 rounded-2xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-3 text-sm">
                         <i class="fa-solid fa-floppy-disk text-base"></i>
-                        <span>Simpan Absensi & Pilih Kelas Lain</span>
+                        <span id="btn-simpan-text">Simpan Absensi & Pilih Kelas Lain</span>
                     </button>
                 </div>
             </section>
@@ -506,6 +506,7 @@
         let isAdminLoggedIn = false;
         const ADMIN_PIN = "1234"; // Default PIN Admin
         let deferredPrompt = null; // PWA Deferred Install Prompt
+        let isSavingAttendance = false; // Lock untuk mencegah double submit
 
         // PWA REGISTRATION & MANIFEST INJECTION
         (function initPWA() {
@@ -817,12 +818,28 @@
 
         function populateClassDropdowns() {
             const classes = [...new Set(masterStudents.map(s => s.kelas))].sort();
+            const inputDate = document.getElementById('input-tgl-absen') ? document.getElementById('input-tgl-absen').value : new Date().toISOString().split('T')[0];
             
             const selectAbsen = document.getElementById('select-kelas-absen');
             const curAbsen = selectAbsen.value;
             selectAbsen.innerHTML = '<option value="">-- Pilih Kelas --</option>';
-            classes.forEach(c => selectAbsen.innerHTML += `<option value="${c}">${c}</option>`);
-            if (classes.includes(curAbsen)) selectAbsen.value = curAbsen;
+            classes.forEach(c => {
+                // Cek apakah kelas sudah diabsen pada tanggal input yang dipilih
+                const isAlreadySubmitted = rawAttendanceList.some(a => a.tgl === inputDate && a.kelas === c);
+                if (isAlreadySubmitted) {
+                    selectAbsen.innerHTML += `<option value="${c}" disabled class="text-slate-400 bg-slate-100">${c} (Sudah Diabsen - Terkunci)</option>`;
+                } else {
+                    selectAbsen.innerHTML += `<option value="${c}">${c}</option>`;
+                }
+            });
+
+            // Jika kelas yang sedang dipilih ternyata baru saja diabsen oleh guru lain, reset atau tampilkan status terkunci
+            const isCurSubmitted = rawAttendanceList.some(a => a.tgl === inputDate && a.kelas === curAbsen);
+            if (classes.includes(curAbsen) && !isCurSubmitted) {
+                selectAbsen.value = curAbsen;
+            } else {
+                selectAbsen.value = '';
+            }
 
             const selectRekap = document.getElementById('rekap-select-kelas');
             const curRekap = selectRekap.value;
@@ -937,18 +954,61 @@
 
         // 2. INPUT PRESENSI
         function renderAttendanceForm() {
-            const selectedClass = document.getElementById('select-kelas-absen').value;
+            const selectedDate = document.getElementById('input-tgl-absen').value;
+            const selectEl = document.getElementById('select-kelas-absen');
+            const selectedClass = selectEl.value;
             const tbody = document.getElementById('tbody-input-absen');
+            const btnSimpan = document.getElementById('btn-simpan-absen');
             tbody.innerHTML = '';
 
-            if (!selectedClass) {
+            // Perbarui status opsi kelas setiap kali tanggal berubah
+            const classes = [...new Set(masterStudents.map(s => s.kelas))].sort();
+            selectEl.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+            classes.forEach(c => {
+                const isSubmitted = rawAttendanceList.some(a => a.tgl === selectedDate && a.kelas === c);
+                if (isSubmitted) {
+                    selectEl.innerHTML += `<option value="${c}" disabled>${c} (Sudah Diabsen - Terkunci)</option>`;
+                } else {
+                    selectEl.innerHTML += `<option value="${c}">${c}</option>`;
+                }
+            });
+
+            // Pastikan kelas yang terpilih belum diabsen
+            const isSelectedLocked = selectedClass && rawAttendanceList.some(a => a.tgl === selectedDate && a.kelas === selectedClass);
+            if (selectedClass && !isSelectedLocked) {
+                selectEl.value = selectedClass;
+            } else {
+                selectEl.value = '';
+            }
+
+            const activeClass = selectEl.value;
+
+            if (isSelectedLocked) {
+                if (btnSimpan) btnSimpan.disabled = true;
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="p-8 text-center">
+                            <div class="inline-flex flex-col items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 px-6 py-4 rounded-2xl">
+                                <i class="fa-solid fa-lock text-2xl text-amber-500"></i>
+                                <p class="font-bold text-sm">Kelas ${selectedClass} Sudah Diabsen Hari Ini</p>
+                                <p class="text-xs text-slate-600">Kelas ini terkunci agar tidak terjadi pengulangan absen. Jika ingin mengabsen ulang, hapus terlebih dahulu di menu <strong>Status Kelas</strong>.</p>
+                            </div>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            if (!activeClass) {
+                if (btnSimpan && !isSavingAttendance) btnSimpan.disabled = false;
                 tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-medium">Silakan pilih kelas terlebih dahulu.</td></tr>`;
                 return;
             }
 
-            const classStudents = masterStudents.filter(s => s.kelas === selectedClass);
+            if (btnSimpan && !isSavingAttendance) btnSimpan.disabled = false;
+
+            const classStudents = masterStudents.filter(s => s.kelas === activeClass);
             if (classStudents.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-medium">Tidak ada siswa terdaftar di kelas ${selectedClass}.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-medium">Tidak ada siswa terdaftar di kelas ${activeClass}.</td></tr>`;
                 return;
             }
 
@@ -1011,12 +1071,23 @@
         }
 
         async function saveAttendanceToGSheet() {
+            // Cegah klik ganda / pengulangan simpan saat proses berjalan
+            if (isSavingAttendance) return;
+
             const selectedClass = document.getElementById('select-kelas-absen').value;
             const selectedDate = document.getElementById('input-tgl-absen').value;
             const guruName = document.getElementById('select-nama-guru').value;
 
             if (!selectedClass) {
                 showToast("Silakan pilih kelas terlebih dahulu!", "error");
+                return;
+            }
+
+            // Validasi ekstra: cegah simpan jika kelas ternyata baru saja diabsen guru lain
+            const isAlreadyLocked = rawAttendanceList.some(a => a.tgl === selectedDate && a.kelas === selectedClass);
+            if (isAlreadyLocked) {
+                showToast(`Kelas ${selectedClass} sudah diabsen oleh guru lain!`, "error");
+                renderAllTabs();
                 return;
             }
 
@@ -1029,6 +1100,13 @@
                 showToast("Silakan atur URL Google Sheets terlebih dahulu!", "error");
                 return;
             }
+
+            // Kunci tombol simpan agar hanya bisa ditekan 1 kali
+            isSavingAttendance = true;
+            const btnSimpan = document.getElementById('btn-simpan-absen');
+            const btnText = document.getElementById('btn-simpan-text');
+            if (btnSimpan) btnSimpan.disabled = true;
+            if (btnText) btnText.innerText = "Menyimpan ke Cloud...";
 
             const classStudents = masterStudents.filter(s => s.kelas === selectedClass);
             const role = document.getElementById('select-peran-guru').value || 'Guru Piket';
@@ -1063,21 +1141,59 @@
                     })
                 });
 
+                // Optimistic Update: Perbarui state lokal seketika agar Status Kelas langsung berubah ke "Sudah Diabsen" (termasuk Nihil)
+                rawAttendanceList = rawAttendanceList.filter(a => !(a.tgl === selectedDate && a.kelas === selectedClass));
+                const nonHadirList = payloadData.filter(r => r.status !== 'Hadir');
+
+                if (nonHadirList.length > 0) {
+                    nonHadirList.forEach(item => {
+                        rawAttendanceList.push({
+                            tgl: item.tgl,
+                            nisn: item.nisn,
+                            nama: item.nama,
+                            kelas: item.kelas,
+                            status: item.status,
+                            note: item.note || '-',
+                            role: item.role,
+                            guruName: item.guruName
+                        });
+                    });
+                } else {
+                    // Jika semua hadir (Nihil), simpan penanda Nihil di memori lokal agar Status Kelas langsung "Sudah Diabsen"
+                    rawAttendanceList.push({
+                        tgl: selectedDate,
+                        nisn: "NIHIL-" + selectedClass,
+                        nama: "Semua Siswa Hadir (Nihil)",
+                        kelas: selectedClass,
+                        status: "Nihil",
+                        note: "Hadir Semua",
+                        role: role,
+                        guruName: guruName
+                    });
+                }
+
+                renderAllTabs();
                 showToast(`Absensi Kelas ${selectedClass} Berhasil Disimpan!`, "success");
 
-                // Clear temporary inputs
+                // Clear temporary inputs & reset dropdown kelas agar tidak ter-submit ulang
                 tempAttendanceState = {};
                 document.getElementById('select-kelas-absen').value = '';
+                renderAttendanceForm();
 
                 // Scroll ke atas otomatis
                 document.getElementById('top-input-anchor').scrollIntoView({ behavior: 'smooth' });
 
-                // Refresh data terbaru dari cloud
-                setTimeout(() => fetchLatestDataFromGSheet(true), 1200);
+                // Refresh data terbaru dari cloud setelah jeda aman
+                setTimeout(() => fetchLatestDataFromGSheet(true), 2000);
 
             } catch (err) {
                 console.error("Save GSheet Error:", err);
                 showToast("Gagal terhubung ke Google Sheets Cloud!", "error");
+            } finally {
+                // Buka kembali kunci tombol setelah proses selesai
+                isSavingAttendance = false;
+                if (btnSimpan) btnSimpan.disabled = false;
+                if (btnText) btnText.innerText = "Simpan Absensi & Pilih Kelas Lain";
             }
         }
 
