@@ -473,6 +473,27 @@
         </div>
     </div>
 
+    <!-- MODAL KONFIRMASI HAPUS ABSENSI KELAS -->
+    <div id="modal-confirm-delete" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center gap-3 text-rose-600">
+                <div class="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h3 class="font-bold text-slate-900 text-base">Hapus Data Absensi?</h3>
+            </div>
+            <p id="confirm-delete-text" class="text-xs text-slate-600 leading-relaxed">
+                Data absensi kelas ini akan dihapus dari Google Sheets sehingga Anda dapat melakukan absensi ulang.
+            </p>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeDeleteConfirmModal()" class="px-4 py-2 rounded-xl text-xs text-slate-600 bg-slate-100 font-semibold hover:bg-slate-200">Batal</button>
+                <button type="button" id="btn-execute-delete" class="px-4 py-2 rounded-xl text-xs text-white bg-rose-600 font-semibold hover:bg-rose-700 shadow-sm flex items-center gap-1.5">
+                    <i class="fa-solid fa-trash"></i> Ya, Hapus & Ulangi
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- ENGINE CODE -->
     <script>
         // GLOBAL STATE
@@ -813,7 +834,8 @@
         // 1. DASHBOARD
         function renderDashboardTab() {
             const todayStr = new Date().toISOString().split('T')[0];
-            const todayAbsence = rawAttendanceList.filter(a => a.tgl === todayStr && a.status !== 'Hadir');
+            // Abaikan status 'Hadir' dan penanda 'Nihil' saat menghitung ketidakhadiran
+            const todayAbsence = rawAttendanceList.filter(a => a.tgl === todayStr && a.status !== 'Hadir' && a.status !== 'Nihil');
 
             document.getElementById('stat-total-siswa').innerText = masterStudents.length;
 
@@ -842,7 +864,7 @@
 
             const classes = [...new Set(masterStudents.map(s => s.kelas))].sort();
             const todayStr = new Date().toISOString().split('T')[0];
-            const todayAbsence = rawAttendanceList.filter(a => a.tgl === todayStr && a.status !== 'Hadir');
+            const todayAbsence = rawAttendanceList.filter(a => a.tgl === todayStr && a.status !== 'Hadir' && a.status !== 'Nihil');
 
             classes.forEach(c => {
                 const classAbsence = todayAbsence.filter(a => a.kelas === c);
@@ -880,7 +902,7 @@
 
             const classes = [...new Set(masterStudents.map(s => s.kelas))].sort();
             const todayStr = new Date().toISOString().split('T')[0];
-            const todayAbsence = rawAttendanceList.filter(a => a.tgl === todayStr && a.status !== 'Hadir');
+            const todayAbsence = rawAttendanceList.filter(a => a.tgl === todayStr && a.status !== 'Hadir' && a.status !== 'Nihil');
 
             const hadirData = [];
             const nonHadirData = [];
@@ -974,13 +996,18 @@
 
         function markAllCurrentClass(status) {
             const selectedClass = document.getElementById('select-kelas-absen').value;
-            if (!selectedClass) return;
+            if (!selectedClass) {
+                showToast("Pilih kelas terlebih dahulu sebelum menekan Set Semua Hadir!", "error");
+                return;
+            }
             const classStudents = masterStudents.filter(s => s.kelas === selectedClass);
             classStudents.forEach(s => {
                 if (!tempAttendanceState[s.nisn]) tempAttendanceState[s.nisn] = { status: 'Hadir', note: '' };
                 tempAttendanceState[s.nisn].status = status;
+                tempAttendanceState[s.nisn].note = '';
             });
             renderAttendanceForm();
+            showToast(`Semua siswa kelas ${selectedClass} diatur ke status Hadir (Nihil). Klik Simpan untuk menyelesaikan.`, "info");
         }
 
         async function saveAttendanceToGSheet() {
@@ -1069,28 +1096,39 @@
             let countBelum = 0;
 
             classes.forEach(c => {
-                const dayClassAbsence = rawAttendanceList.filter(a => a.tgl === selectedDate && a.kelas === c);
-                // Jika ada entri di rawAttendanceList atau kelas tersebut sudah disimpan (minimal penanda/catatan)
-                const isSubmitted = dayClassAbsence.length > 0;
+                const dayClassRecords = rawAttendanceList.filter(a => a.tgl === selectedDate && a.kelas === c);
+                // Kelas dianggap Sudah Diabsen jika terdapat catatan siswa absen ATAU penanda status 'Nihil'
+                const isSubmitted = dayClassRecords.length > 0;
 
                 let sCount = 0, iCount = 0, aCount = 0;
-                dayClassAbsence.forEach(a => {
+                dayClassRecords.forEach(a => {
                     if (a.status === 'Sakit') sCount++;
                     if (a.status === 'Izin') iCount++;
                     if (a.status === 'Alpha') aCount++;
                 });
 
+                const isNihil = isSubmitted && (sCount === 0 && iCount === 0 && aCount === 0);
+
                 if (isSubmitted) {
                     countSudah++;
+                    const infoText = isNihil 
+                        ? `<span class="text-emerald-700 font-semibold">Nihil (Semua Siswa Hadir)</span>`
+                        : `Sakit: ${sCount} | Izin: ${iCount} | Alpha: ${aCount}`;
+
                     containerSudah.innerHTML += `
-                        <div class="p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-200 flex items-center justify-between">
+                        <div class="p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-200 flex items-center justify-between gap-2">
                             <div>
                                 <h5 class="font-bold text-slate-900 text-sm">Kelas ${c}</h5>
-                                <p class="text-xs text-slate-500 font-medium">Sakit: ${sCount} | Izin: ${iCount} | Alpha: ${aCount}</p>
+                                <p class="text-xs text-slate-500 font-medium">${infoText}</p>
                             </div>
-                            <span class="text-xs bg-emerald-600 text-white font-semibold px-2.5 py-1 rounded-lg">
-                                <i class="fa-solid fa-check"></i> Selesai
-                            </span>
+                            <div class="flex items-center gap-1.5 flex-shrink-0">
+                                <span class="text-xs bg-emerald-600 text-white font-semibold px-2.5 py-1 rounded-lg">
+                                    <i class="fa-solid fa-check"></i> Selesai
+                                </span>
+                                <button onclick="confirmDeleteClassAttendance('${selectedDate}', '${c}')" title="Hapus & Absen Ulang Kelas ${c}" class="text-xs bg-rose-100 hover:bg-rose-600 text-rose-600 hover:text-white font-semibold px-2.5 py-1 rounded-lg transition-all border border-rose-200">
+                                    <i class="fa-solid fa-trash-can"></i> Hapus
+                                </button>
+                            </div>
                         </div>
                     `;
                 } else {
@@ -1111,6 +1149,56 @@
 
             document.getElementById('badge-count-sudah').innerText = `${countSudah} Kelas`;
             document.getElementById('badge-count-belum').innerText = `${countBelum} Kelas`;
+        }
+
+        function confirmDeleteClassAttendance(tgl, kelas) {
+            const modal = document.getElementById('modal-confirm-delete');
+            const textEl = document.getElementById('confirm-delete-text');
+            const execBtn = document.getElementById('btn-execute-delete');
+
+            textEl.innerHTML = `Apakah Anda yakin ingin menghapus data absensi <strong>Kelas ${kelas}</strong> pada tanggal <strong>${tgl}</strong> dari database? Setelah dihapus, Anda dapat mengabsen ulang kelas tersebut.`;
+            modal.classList.remove('hidden');
+
+            execBtn.onclick = function() {
+                closeDeleteConfirmModal();
+                executeDeleteClassAttendance(tgl, kelas);
+            };
+        }
+
+        function closeDeleteConfirmModal() {
+            document.getElementById('modal-confirm-delete').classList.add('hidden');
+        }
+
+        async function executeDeleteClassAttendance(tgl, kelas) {
+            if (!gsheetUrl) {
+                showToast("URL Google Sheets belum diatur!", "error");
+                return;
+            }
+
+            showToast(`Menghapus data absensi Kelas ${kelas}...`, "info");
+
+            // Optimistic local state removal for instant UI & Dashboard feedback
+            rawAttendanceList = rawAttendanceList.filter(a => !(a.tgl === tgl && a.kelas === kelas));
+            renderAllTabs();
+
+            try {
+                await fetch(gsheetUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'delete_class_attendance',
+                        tgl: tgl,
+                        kelas: kelas
+                    })
+                });
+
+                showToast(`Absensi Kelas ${kelas} berhasil dihapus! Silakan absen ulang.`, "success");
+                setTimeout(() => fetchLatestDataFromGSheet(true), 1200);
+            } catch (err) {
+                console.error("Delete Class Attendance Error:", err);
+                showToast("Gagal menghapus data di Google Sheets!", "error");
+            }
         }
 
         function quickSelectClassForAbsen(cName) {
@@ -1138,7 +1226,8 @@
                     matchClass = (a.kelas === selectedClass);
                 }
 
-                return matchDate && matchClass && a.status !== 'Hadir';
+                // Sembunyikan status 'Hadir' dan baris penanda kelas 'Nihil' dari tabel ketidakhadiran
+                return matchDate && matchClass && a.status !== 'Hadir' && a.status !== 'Nihil';
             });
 
             filteredRecords.forEach((rec, idx) => {
@@ -1168,7 +1257,7 @@
 
         function exportRekapCSV() {
             const selectedDate = document.getElementById('rekap-tgl').value;
-            const filteredRecords = rawAttendanceList.filter(a => (!selectedDate || a.tgl === selectedDate) && a.status !== 'Hadir');
+            const filteredRecords = rawAttendanceList.filter(a => (!selectedDate || a.tgl === selectedDate) && a.status !== 'Hadir' && a.status !== 'Nihil');
 
             if (filteredRecords.length === 0) {
                 showToast("Tidak ada data rekap untuk diexport!", "error");
