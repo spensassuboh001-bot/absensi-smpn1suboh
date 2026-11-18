@@ -817,7 +817,7 @@
         }
 
         function populateClassDropdowns() {
-            const classes = [...new Set(masterStudents.map(s => s.kelas))].sort();
+            const classes = [...new Set(masterStudents.map(s => String(s.kelas).trim()))].sort();
             const inputDate = document.getElementById('input-tgl-absen') ? document.getElementById('input-tgl-absen').value : new Date().toISOString().split('T')[0];
             
             const selectAbsen = document.getElementById('select-kelas-absen');
@@ -825,7 +825,7 @@
             selectAbsen.innerHTML = '<option value="">-- Pilih Kelas --</option>';
             classes.forEach(c => {
                 // Cek apakah kelas sudah diabsen pada tanggal input yang dipilih
-                const isAlreadySubmitted = rawAttendanceList.some(a => a.tgl === inputDate && a.kelas === c);
+                const isAlreadySubmitted = rawAttendanceList.some(a => String(a.tgl).trim() === inputDate && String(a.kelas).trim() === c);
                 if (isAlreadySubmitted) {
                     selectAbsen.innerHTML += `<option value="${c}" disabled class="text-slate-400 bg-slate-100">${c} (Sudah Diabsen - Terkunci)</option>`;
                 } else {
@@ -834,7 +834,7 @@
             });
 
             // Jika kelas yang sedang dipilih ternyata baru saja diabsen oleh guru lain, reset atau tampilkan status terkunci
-            const isCurSubmitted = rawAttendanceList.some(a => a.tgl === inputDate && a.kelas === curAbsen);
+            const isCurSubmitted = rawAttendanceList.some(a => String(a.tgl).trim() === inputDate && String(a.kelas).trim() === curAbsen);
             if (classes.includes(curAbsen) && !isCurSubmitted) {
                 selectAbsen.value = curAbsen;
             } else {
@@ -1200,7 +1200,7 @@
         // 3. STATUS KELAS
         function renderStatusKelasTab() {
             const selectedDate = document.getElementById('status-kelas-tgl').value;
-            const classes = [...new Set(masterStudents.map(s => s.kelas))].sort();
+            const classes = [...new Set(masterStudents.map(s => String(s.kelas).trim()))].sort();
 
             const containerSudah = document.getElementById('container-sudah-diabsen');
             const containerBelum = document.getElementById('container-belum-diabsen');
@@ -1212,7 +1212,7 @@
             let countBelum = 0;
 
             classes.forEach(c => {
-                const dayClassRecords = rawAttendanceList.filter(a => a.tgl === selectedDate && a.kelas === c);
+                const dayClassRecords = rawAttendanceList.filter(a => String(a.tgl).trim() === selectedDate && String(a.kelas).trim() === c);
                 // Kelas dianggap Sudah Diabsen jika terdapat catatan siswa absen ATAU penanda status 'Nihil'
                 const isSubmitted = dayClassRecords.length > 0;
 
